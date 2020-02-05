@@ -20,11 +20,11 @@ import UIKit
 class CameraCaptureHelper: NSObject
 {
     let captureSession = AVCaptureSession()
-    let cameraPosition: AVCaptureDevicePosition
+    let cameraPosition: AVCaptureDevice.Position
     
     weak var delegate: CameraCaptureHelperDelegate?
     
-    required init(cameraPosition: AVCaptureDevicePosition)
+    required init(cameraPosition: AVCaptureDevice.Position)
     {
         self.cameraPosition = cameraPosition
         
@@ -35,9 +35,9 @@ class CameraCaptureHelper: NSObject
     
     private func initialiseCaptureSession()
     {
-        captureSession.sessionPreset = AVCaptureSessionPresetiFrame1280x720
+        captureSession.sessionPreset = AVCaptureSession.Preset.iFrame1280x720
         
-        guard let camera = (AVCaptureDevice.devicesWithMediaType(AVMediaTypeVideo) as! [AVCaptureDevice])
+        guard let camera = (AVCaptureDevice.devices(for: AVMediaType.video) )
             .filter({ $0.position == cameraPosition })
             .first else
         {
@@ -57,8 +57,10 @@ class CameraCaptureHelper: NSObject
         
         let videoOutput = AVCaptureVideoDataOutput()
         
-        videoOutput.setSampleBufferDelegate(self,
-            queue: dispatch_queue_create("sample buffer delegate", DISPATCH_QUEUE_SERIAL))
+        videoOutput.setSampleBufferDelegate(
+            self,
+            queue: DispatchQueue(label: "sample buffer delegate")
+        )
         
         if captureSession.canAddOutput(videoOutput)
         {
@@ -73,17 +75,17 @@ extension CameraCaptureHelper: AVCaptureVideoDataOutputSampleBufferDelegate
 {
     func captureOutput(captureOutput: AVCaptureOutput!, didOutputSampleBuffer sampleBuffer: CMSampleBuffer!, fromConnection connection: AVCaptureConnection!)
     {
-        connection.videoOrientation = AVCaptureVideoOrientation(rawValue: UIApplication.sharedApplication().statusBarOrientation.rawValue)!
+        connection.videoOrientation = AVCaptureVideoOrientation(rawValue: UIApplication.shared.statusBarOrientation.rawValue)!
         
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else
         {
             return
         }
         
-        dispatch_async(dispatch_get_main_queue())
+        DispatchQueue.main.async()
             {
-                self.delegate?.newCameraImage(self,
-                    image: CIImage(CVPixelBuffer: pixelBuffer))
+                self.delegate?.newCameraImage(cameraCaptureHelper: self,
+                    image: CIImage(cvPixelBuffer: pixelBuffer))
         }
         
     }
